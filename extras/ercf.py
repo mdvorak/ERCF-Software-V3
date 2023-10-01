@@ -112,6 +112,7 @@ class Ercf:
     ACTION_CHECKING = 7
     ACTION_HOMING = 8
     ACTION_SELECTING = 9
+    ACTION_UNLOADED = 10
 
     # Extruder homing sensing strategies
     EXTRUDER_COLLISION = 0
@@ -353,8 +354,8 @@ class Ercf:
         self.gcode.register_command('ERCF_BUZZ_GEAR_MOTOR',
                     self.cmd_ERCF_BUZZ_GEAR_MOTOR,
                     desc=self.cmd_ERCF_BUZZ_GEAR_MOTOR_help)
-        self.gcode.register_command('ERCF_SYNC_GEAR_MOTOR', 
-                    self.cmd_ERCF_SYNC_GEAR_MOTOR, 
+        self.gcode.register_command('ERCF_SYNC_GEAR_MOTOR',
+                    self.cmd_ERCF_SYNC_GEAR_MOTOR,
                     desc=self.cmd_ERCF_SYNC_GEAR_MOTOR_help)
 
 	# Core ERCF functionality
@@ -739,6 +740,7 @@ class Ercf:
         return ("Idle" if self.action == self.ACTION_IDLE else
                 "Loading" if self.action == self.ACTION_LOADING else
                 "Unloading" if self.action == self.ACTION_UNLOADING else
+                "Unloaded" if self.action == self.ACTION_UNLOADED else
                 "Loading Ext" if self.action == self.ACTION_LOADING_EXTRUDER else
                 "Exiting Ext" if self.action == self.ACTION_UNLOADING_EXTRUDER else
                 "Forming Tip" if self.action == self.ACTION_FORMING_TIP else
@@ -2192,7 +2194,7 @@ class Ercf:
                         self._log_debug("Moving the gear and extruder motors in sync for %.1fmm" % self.sync_load_length)
                         delta = self._trace_filament_move("Sync load move", self.sync_load_length, speed=self.sync_load_speed, motor="both")
                         length -= self.sync_load_length
-    
+
                 # Move the remaining distance to the nozzle meltzone under exclusive extruder stepper control
                 self._servo_up()
                 delta = self._trace_filament_move("Remainder of final move to meltzone", length, speed=self.nozzle_load_speed, motor="extruder")
@@ -2289,6 +2291,8 @@ class Ercf:
             else:
                 self._log_debug("Assertion failure - unexpected state %d in _unload_sequence()" % self.loaded_status)
                 raise ErcfError("Unexpected state during unload sequence")
+
+            self._set_action(self.ACTION_UNLOADED)
 
             movement = self._servo_up()
             if movement > self.ENCODER_MIN:
@@ -2510,7 +2514,7 @@ class Ercf:
             park_pos = 35.  # TODO cosmetic: bring in from tip forming (represents parking position in extruder)
             self._log_info("Forming tip...")
             self._set_above_min_temp()
-            
+
             self._sync_gear_to_extruder(self.sync_form_tip and not disable_sync, servo=True)
 
             if self.extruder_tmc and self.extruder_form_tip_current > 100:
@@ -3468,7 +3472,7 @@ class Ercf:
             material = self.gate_material[g] if self.gate_material[g] != "" else "n/a"
             color = self.gate_color[g] if self.gate_color[g] != "" else "n/a"
             available = {
-                self.GATE_AVAILABLE_FROM_BUFFER: "Buffered", 
+                self.GATE_AVAILABLE_FROM_BUFFER: "Buffered",
                 self.GATE_AVAILABLE: "Available",
                 self.GATE_EMPTY: "Empty",
                 self.GATE_UNKNOWN: "Unknown"
