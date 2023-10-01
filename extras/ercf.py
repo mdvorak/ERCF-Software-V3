@@ -298,6 +298,9 @@ class Ercf:
         self.rewind_stepper_ratio = 3 # TODO
 
         for i in range(len(self.tool_to_rewind_stepper_map)):
+            section = 'manual_stepper rewind_stepper%d' % (i, )
+            if not self.config.has_section(section):
+                break
             rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
             if rewind_stepper is not None:
                 self.tool_to_rewind_stepper_map[i] = rewind_stepper
@@ -490,13 +493,6 @@ class Ercf:
             self.ercf_logger.setLevel(logging.INFO)
             self.ercf_logger.addHandler(queue_handler)
 
-            # TODO
-            for rewind_stepper in self.tool_to_rewind_stepper_map:
-                if rewind_stepper is not None:
-                    self._log_always('Found rewind stepper for T%d' % i)
-            if len(self._get_rewind_steppers()) == 0:
-                self._log_always('No rewind stepper configured')
-
         self.toolhead = self.printer.lookup_object('toolhead')
         for manual_stepper in self.printer.lookup_objects('manual_stepper'):
             stepper_name = manual_stepper[1].get_steppers()[0].get_name()
@@ -551,6 +547,12 @@ class Ercf:
         self.extruder = self.printer.lookup_object(self.extruder_name, None)
         if not self.extruder:
             raise self.config.error("Extruder named `%s` not found on printer" % self.extruder_name)
+
+        found_rewind_steppers = [i for i in range(len(self.tool_to_rewind_stepper_map)) if self.tool_to_rewind_stepper_map[i] is not None]
+        if found_rewind_steppers > 0:
+            self._log_always('Found rewind steppers for tools %o' % (found_rewind_steppers.join(' '), ))
+        else
+            self._log_always('No rewind stepper configured')
 
         # See if we have a TMC controller capable of current control for filament collision detection and syncing
         # on gear_stepper and tip forming on extruder
