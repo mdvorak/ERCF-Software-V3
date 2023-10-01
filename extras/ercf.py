@@ -298,7 +298,7 @@ class Ercf:
         self.rewind_stepper_ratio = 3 # TODO
 
         for i in range(len(self.tool_to_rewind_stepper_map)):
-            rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i)
+            rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
             if rewind_stepper is not None:
                 self.tool_to_rewind_stepper_map[i] = rewind_stepper
 
