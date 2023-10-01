@@ -2856,12 +2856,12 @@ class Ercf:
             stepper.set_rotation_distance(new_rotation_dist)
             # always match rotation distance, otherwise steppers would not move in sync
             for rewind_stepper in self._get_rewind_steppers():
-                rewind_stepper.set_rotation_distance(new_rotation_dist)
+                rewind_stepper.steppers[0].set_rotation_distance(new_rotation_dist)
         else:
             # Backwards compatibility for old klipper versions
             stepper.set_step_dist(new_step_dist)
             for rewind_stepper in self._get_rewind_steppers():
-                rewind_stepper.set_step_dist(new_step_dist)
+                rewind_stepper.steppers[0].set_step_dist(new_step_dist)
 
 
 ### CORE GCODE COMMANDS ##########################################################
