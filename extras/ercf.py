@@ -1979,14 +1979,14 @@ class Ercf:
         for rewind_stepper in self._get_rewind_steppers():
             rewind_stepper.do_enable(False)
 
-    def _rewind_stepper_do_move(self, distance, speed, accel, sync):
+    def _rewind_stepper_do_move(self, distance, speed, accel, sync=True):
         if self.gate_selected < 0:
             return
 
         rewind_stepper = self.tool_to_rewind_stepper_map[self.gate_selected]
         if rewind_stepper is not None:
             ratio = self.rewind_stepper_ratio
-            self._log_always('Rewinding T%d for %.1f' % (self.gate_selected, distance*ratio))
+            self._log_always('Rewinding T%d for %.1f, sync=%s' % (self.gate_selected, distance*ratio, sync, ))
             rewind_stepper.do_set_position(0.)
             rewind_stepper.do_move(distance * ratio, speed * ratio, accel, sync)
         else:
