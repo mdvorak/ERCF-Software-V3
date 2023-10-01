@@ -551,7 +551,7 @@ class Ercf:
         found_rewind_steppers = [i for i in range(len(self.tool_to_rewind_stepper_map)) if self.tool_to_rewind_stepper_map[i] is not None]
         if found_rewind_steppers > 0:
             self._log_always('Found rewind steppers for tools %o' % (found_rewind_steppers.join(' '), ))
-        else
+        else:
             self._log_always('No rewind stepper configured')
 
         # See if we have a TMC controller capable of current control for filament collision detection and syncing
