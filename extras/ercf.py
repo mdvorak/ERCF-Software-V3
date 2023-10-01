@@ -1817,7 +1817,8 @@ class Ercf:
         if accel is None:
             accel = self.gear_stepper.accel
         self._log_stepper("GEAR: dist=%.1f, speed=%1.f, accel=%.1f sync=%s wait=%s" % (dist, speed, accel, sync, wait))
-        self._rewind_stepper_do_move(dist, speed, accel, False)
+        if dist < -5:
+            self._rewind_stepper_do_move(dist, speed, accel, False)
         self.gear_stepper.do_move(dist, speed, accel, sync)
         if wait:
             self.toolhead.wait_moves()
@@ -1838,7 +1839,8 @@ class Ercf:
             self.gear_stepper.do_set_position(0.)                   # Make incremental move
             pos = self.toolhead.get_position()
             pos[3] += distance
-            self._rewind_stepper_do_move(distance, speed, self.gear_sync_accel, False)
+            if distance < -5:
+                self._rewind_stepper_do_move(distance, speed, self.gear_sync_accel, False)
             self.gear_stepper.do_move(distance, speed, self.gear_sync_accel, False)
             self.toolhead.manual_move(pos, speed)
             self.toolhead.dwell(0.05)                               # "MCU Timer too close" protection
