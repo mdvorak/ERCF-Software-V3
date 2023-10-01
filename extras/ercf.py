@@ -293,17 +293,9 @@ class Ercf:
                 self.default_tool_to_gate_map.append(i)
         self.tool_to_gate_map = list(self.default_tool_to_gate_map)
 
-        # Find rewind steppers
+        # Rewind steppers
         self.tool_to_rewind_stepper_map = [None] * len(self.selector_offsets)
         self.rewind_stepper_ratio = 3 # TODO
-
-        for i in range(len(self.tool_to_rewind_stepper_map)):
-            section = 'manual_stepper rewind_stepper%d' % (i, )
-            if not self.config.has_section(section):
-                break
-            rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
-            if rewind_stepper is not None:
-                self.tool_to_rewind_stepper_map[i] = rewind_stepper
 
         # Initialize state and statistics variables
         self._initialize_state()
@@ -548,11 +540,18 @@ class Ercf:
         if not self.extruder:
             raise self.config.error("Extruder named `%s` not found on printer" % self.extruder_name)
 
-        found_rewind_steppers = [i for i in range(len(self.tool_to_rewind_stepper_map)) if self.tool_to_rewind_stepper_map[i] is not None]
+        # Rewind steppers
+        for i in range(len(self.tool_to_rewind_stepper_map)):
+            rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
+            if rewind_stepper is not None:
+                self.tool_to_rewind_stepper_map[i] = rewind_stepper
+
+        found_rewind_steppers = [i for i in range(len(self.tool_to_rewind_stepper_map))
+                                 if self.tool_to_rewind_stepper_map[i] is not None]
         if len(found_rewind_steppers) > 0:
-            self._log_always('Found rewind steppers for tools %s' % (found_rewind_steppers.join(' '), ))
+            self._log_debug('Found rewind steppers for tools %s' % (found_rewind_steppers.join(' '), ))
         else:
-            self._log_always('No rewind stepper configured')
+            self._log_debug('No rewind steppers configured')
 
         # See if we have a TMC controller capable of current control for filament collision detection and syncing
         # on gear_stepper and tip forming on extruder
