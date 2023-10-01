@@ -301,6 +301,7 @@ class Ercf:
             rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
             if rewind_stepper is not None:
                 self.tool_to_rewind_stepper_map[i] = rewind_stepper
+                self._log_always('Found rewind stepper for T%d' % i)
 
         # Initialize state and statistics variables
         self._initialize_state()
@@ -1970,6 +1971,7 @@ class Ercf:
         return [i for i in self.tool_to_rewind_stepper_map if i is not None]
 
     def _rewind_steppers_off(self):
+        self._log_always('Rewind steppers off')
         for rewind_stepper in self._get_rewind_steppers():
             rewind_stepper.do_enable(False)
 
@@ -1977,8 +1979,11 @@ class Ercf:
         rewind_stepper = self.tool_to_rewind_stepper_map[self.gate_selected]
         if rewind_stepper is not None:
             ratio = self.rewind_stepper_ratio
+            self._log_always('Rewinding T%d for %.1f' % (self.gate_selected, distance*ratio))
             rewind_stepper.do_set_position(0.)
             rewind_stepper.do_move(distance * ratio, speed * ratio, accel, sync)
+        else:
+            self._log_always('Rewind steppers for T%d not found' % self.gate_selected)
 
 ###########################
 # FILAMENT LOAD FUNCTIONS #
