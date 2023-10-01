@@ -301,9 +301,6 @@ class Ercf:
             rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i, None)
             if rewind_stepper is not None:
                 self.tool_to_rewind_stepper_map[i] = rewind_stepper
-                self._log_always('Found rewind stepper for T%d' % i)
-        if len(self._get_rewind_steppers()) == 0:
-            self._log_always('No rewind stepper configured')
 
         # Initialize state and statistics variables
         self._initialize_state()
@@ -492,6 +489,13 @@ class Ercf:
             self.ercf_logger = logging.getLogger('ercf')
             self.ercf_logger.setLevel(logging.INFO)
             self.ercf_logger.addHandler(queue_handler)
+
+            # TODO
+            for rewind_stepper in self.tool_to_rewind_stepper_map:
+                if rewind_stepper is not None:
+                    self._log_always('Found rewind stepper for T%d' % i)
+            if len(self._get_rewind_steppers()) == 0:
+                self._log_always('No rewind stepper configured')
 
         self.toolhead = self.printer.lookup_object('toolhead')
         for manual_stepper in self.printer.lookup_objects('manual_stepper'):
