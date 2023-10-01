@@ -293,6 +293,15 @@ class Ercf:
                 self.default_tool_to_gate_map.append(i)
         self.tool_to_gate_map = list(self.default_tool_to_gate_map)
 
+        # Find rewind steppers
+        self.tool_to_rewind_stepper_map = [None] * len(self.selector_offsets)
+        self.rewind_stepper_ratio = 3 # TODO
+
+        for i in range(len(self.tool_to_rewind_stepper_map)):
+            rewind_stepper = self.printer.lookup_object('manual_stepper rewind_stepper%d' % i)
+            if rewind_stepper is not None:
+                self.tool_to_rewind_stepper_map[i] = rewind_stepper
+
         # Initialize state and statistics variables
         self._initialize_state()
 
@@ -353,8 +362,8 @@ class Ercf:
         self.gcode.register_command('ERCF_BUZZ_GEAR_MOTOR',
                     self.cmd_ERCF_BUZZ_GEAR_MOTOR,
                     desc=self.cmd_ERCF_BUZZ_GEAR_MOTOR_help)
-        self.gcode.register_command('ERCF_SYNC_GEAR_MOTOR', 
-                    self.cmd_ERCF_SYNC_GEAR_MOTOR, 
+        self.gcode.register_command('ERCF_SYNC_GEAR_MOTOR',
+                    self.cmd_ERCF_SYNC_GEAR_MOTOR,
                     desc=self.cmd_ERCF_SYNC_GEAR_MOTOR_help)
 
 	# Core ERCF functionality
@@ -1130,6 +1139,9 @@ class Ercf:
         self.servo.set_value(angle=self.servo_up_angle, duration=self.servo_duration)
         self.servo_state = self.SERVO_UP_STATE
 
+        # Disable rewind steppers
+        self._rewind_steppers_off()
+
         # Report on spring back in filament then reset counter
         self.toolhead.dwell(max(self.servo_duration, 0.4))
         self.toolhead.wait_moves()
@@ -1143,6 +1155,9 @@ class Ercf:
         if motor == "all" or motor == "gear":
             self._sync_gear_to_extruder(False)
             self.gear_stepper.do_enable(False)
+            # Disable rewind steppers
+            self._rewind_steppers_off()
+
         if motor == "all" or motor == "selector":
             self.selector_stepper.do_enable(False)
             self.is_homed = False
@@ -1802,6 +1817,7 @@ class Ercf:
         if accel is None:
             accel = self.gear_stepper.accel
         self._log_stepper("GEAR: dist=%.1f, speed=%1.f, accel=%.1f sync=%s wait=%s" % (dist, speed, accel, sync, wait))
+        self._rewind_stepper_do_move(dist, speed, accel, False)
         self.gear_stepper.do_move(dist, speed, accel, sync)
         if wait:
             self.toolhead.wait_moves()
@@ -1822,6 +1838,7 @@ class Ercf:
             self.gear_stepper.do_set_position(0.)                   # Make incremental move
             pos = self.toolhead.get_position()
             pos[3] += distance
+            self._rewind_stepper_do_move(distance, speed, self.gear_sync_accel, False)
             self.gear_stepper.do_move(distance, speed, self.gear_sync_accel, False)
             self.toolhead.manual_move(pos, speed)
             self.toolhead.dwell(0.05)                               # "MCU Timer too close" protection
@@ -1947,6 +1964,19 @@ class Ercf:
             self.gcode.run_script_from_command("SET_TMC_CURRENT STEPPER=gear_stepper CURRENT=%.2f" % self.gear_stepper_run_current)
             self.gear_stepper_run_current = -1
 
+    def _get_rewind_steppers(self):
+        return [i for i in self.tool_to_rewind_stepper_map if i is not None]
+
+    def _rewind_steppers_off(self):
+        for rewind_stepper in self._get_rewind_steppers():
+            rewind_stepper.do_enable(False)
+
+    def _rewind_stepper_do_move(self, distance, speed, accel, sync):
+        rewind_stepper = self.tool_to_rewind_stepper_map[self.gate_selected]
+        if rewind_stepper is not None:
+            ratio = self.rewind_stepper_ratio
+            rewind_stepper.do_set_position(0.)
+            rewind_stepper.do_move(distance * ratio, speed * ratio, accel, sync)
 
 ###########################
 # FILAMENT LOAD FUNCTIONS #
@@ -2192,7 +2222,7 @@ class Ercf:
                         self._log_debug("Moving the gear and extruder motors in sync for %.1fmm" % self.sync_load_length)
                         delta = self._trace_filament_move("Sync load move", self.sync_load_length, speed=self.sync_load_speed, motor="both")
                         length -= self.sync_load_length
-    
+
                 # Move the remaining distance to the nozzle meltzone under exclusive extruder stepper control
                 self._servo_up()
                 delta = self._trace_filament_move("Remainder of final move to meltzone", length, speed=self.nozzle_load_speed, motor="extruder")
@@ -2510,7 +2540,7 @@ class Ercf:
             park_pos = 35.  # TODO cosmetic: bring in from tip forming (represents parking position in extruder)
             self._log_info("Forming tip...")
             self._set_above_min_temp()
-            
+
             self._sync_gear_to_extruder(self.sync_form_tip and not disable_sync, servo=True)
 
             if self.extruder_tmc and self.extruder_form_tip_current > 100:
@@ -2810,9 +2840,14 @@ class Ercf:
         if hasattr(stepper, "set_rotation_distance"):
             new_rotation_dist = new_step_dist * stepper.get_rotation_distance()[1]
             stepper.set_rotation_distance(new_rotation_dist)
+            # always match rotation distance, otherwise steppers would not move in sync
+            for rewind_stepper in self._get_rewind_steppers():
+                rewind_stepper.set_rotation_distance(new_rotation_dist)
         else:
             # Backwards compatibility for old klipper versions
             stepper.set_step_dist(new_step_dist)
+            for rewind_stepper in self._get_rewind_steppers():
+                rewind_stepper.set_step_dist(new_step_dist)
 
 
 ### CORE GCODE COMMANDS ##########################################################
@@ -3468,7 +3503,7 @@ class Ercf:
             material = self.gate_material[g] if self.gate_material[g] != "" else "n/a"
             color = self.gate_color[g] if self.gate_color[g] != "" else "n/a"
             available = {
-                self.GATE_AVAILABLE_FROM_BUFFER: "Buffered", 
+                self.GATE_AVAILABLE_FROM_BUFFER: "Buffered",
                 self.GATE_AVAILABLE: "Available",
                 self.GATE_EMPTY: "Empty",
                 self.GATE_UNKNOWN: "Unknown"
