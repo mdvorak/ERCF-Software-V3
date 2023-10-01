@@ -1980,6 +1980,9 @@ class Ercf:
             rewind_stepper.do_enable(False)
 
     def _rewind_stepper_do_move(self, distance, speed, accel, sync):
+        if self.gate_selected < 0:
+            return
+
         rewind_stepper = self.tool_to_rewind_stepper_map[self.gate_selected]
         if rewind_stepper is not None:
             ratio = self.rewind_stepper_ratio
@@ -1987,7 +1990,7 @@ class Ercf:
             rewind_stepper.do_set_position(0.)
             rewind_stepper.do_move(distance * ratio, speed * ratio, accel, sync)
         else:
-            self._log_always('Rewind steppers for T%d not found' % self.gate_selected)
+            self._log_always('Rewind stepper for T%d not found' % self.gate_selected)
 
 ###########################
 # FILAMENT LOAD FUNCTIONS #
