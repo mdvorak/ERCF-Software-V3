@@ -302,6 +302,8 @@ class Ercf:
             if rewind_stepper is not None:
                 self.tool_to_rewind_stepper_map[i] = rewind_stepper
                 self._log_always('Found rewind stepper for T%d' % i)
+        if len(self._get_rewind_steppers()) == 0:
+            self._log_always('No rewind stepper configured')
 
         # Initialize state and statistics variables
         self._initialize_state()
